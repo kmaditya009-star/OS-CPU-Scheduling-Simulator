@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>OS CPU Scheduling Simulator</title>
+
+<link href="style.css" rel="stylesheet"/></head>
+<body>
+<header><h1>CPU Scheduling <span>Lab Simulator</span></h1><p class="sub">Add processes, run scheduling algorithms, inspect the Gantt chart, compare turnaround &amp; waiting time, and review the lab procedure—all in one offline page.</p></header>
+<div class="layout">
+<aside class="panel controls"><h2>Process Input</h2>
+<div class="row"><div class="field"><label>Process ID</label><input id="pid" placeholder="P5" value="P5"/></div><div class="field"><label>Arrival Time</label><input id="arrival" min="0" type="number" value="0"/></div></div>
+<div class="field"><label>Burst Time</label><input id="burst" min="1" type="number" value="5"/></div>
+<div class="row"><button class="btn" id="addBtn">+ Add Process</button><button class="btn secondary" id="sampleBtn">Load Example</button></div>
+<div class="row" style="margin-top:8px"><button class="btn ghost" id="clearBtn">Clear Processes</button></div>
+<h3>Process Queue</h3><div class="table-scroll"><table class="process-table"><thead><tr><th>PID</th><th>Arrival</th><th>Burst</th><th></th></tr></thead><tbody id="processRows"></tbody></table></div><div class="info" id="processEmpty" style="padding:10px 0">No processes added yet.</div>
+<hr style="border:0;border-top:1px solid var(--line);margin:18px 0"/>
+<div class="field"><label>Algorithm</label><select id="algo"><option value="fcfs">FCFS — First Come First Served</option><option value="sjf">SJF — Shortest Job First (non-preemptive)</option><option value="rr">Round Robin</option><option value="mlfq">MLFQ — 3 queue levels (demo)</option></select></div>
+<div class="field" id="quantumField"><label>Time Quantum (RR / MLFQ)</label><input id="quantum" min="1" type="number" value="2"/></div>
+<button class="btn" id="runBtn" style="width:100%;margin-top:8px">▶ Run Simulation</button>
+</aside>
+<main class="right">
+<section class="panel"><div class="toprow"><h2 style="margin:0">Timeline / Gantt Chart</h2><span class="pill" id="algoLabel">Ready</span></div><div class="empty" id="ganttArea" style="margin-top:15px">Add processes and run an algorithm to see the Gantt chart.</div><div class="legend" id="legend"></div><div class="metric-grid"><div class="metric"><div class="k">Total Time</div><div class="v" id="totalTime">—</div></div><div class="metric"><div class="k">Avg. Waiting</div><div class="v" id="avgWT">—</div></div><div class="metric"><div class="k">Avg. Turnaround</div><div class="v" id="avgTAT">—</div></div><div class="metric"><div class="k">CPU Utilization</div><div class="v" id="cpuUtil">—</div></div></div></section>
+<section class="panel"><h2>Process Metrics</h2><div class="empty" id="metricsTable">Simulation results will appear here.</div></section>
+<section class="panel"><h2>Learning / Lab Reference</h2><div class="tabs"><button class="tab active" data-tab="aim">Aim &amp; Procedure</button><button class="tab" data-tab="pseudo">Pseudo Code</button><button class="tab" data-tab="c">C Code</button><button class="tab" data-tab="io">Sample I/O</button><button class="tab" data-tab="faq">FAQ</button></div>
+<div class="content active" id="aim"><p><strong>AIM:</strong> To simulate CPU scheduling algorithms (FCFS, SJF, Round Robin and MLFQ), display execution order using a Gantt chart, and calculate completion time (CT), turnaround time (TAT), waiting time (WT), and CPU utilization.</p><p><strong>Lab Procedure:</strong></p><ol><li>Enter process ID, arrival time, and burst time; click <em>Add Process</em>.</li><li>Repeat to add all processes, or click <em>Load Example</em> for sample data.</li><li>Select an algorithm. For RR/MLFQ, set the time quantum.</li><li>Click <em>Run Simulation</em> and inspect the Gantt chart and results table.</li><li>Compare results between algorithms and explain why the metrics differ.</li></ol><p><strong>Key formulas:</strong> TAT = CT − AT; WT = TAT − BT; CPU Utilization = busy time ÷ total elapsed time × 100%.</p></div>
+<div class="content" id="pseudo"><pre class="code">FCFS / SJF (non-preemptive):
+1. Set current time = 0.
+2. While unfinished processes remain:
+   a. Find arrived, unfinished processes.
+   b. If none, advance time to next arrival (CPU idle).
+   c. Select FCFS: earliest arrival (tie: input order),
+      or SJF: smallest burst (tie: arrival then input order).
+   d. Run selected process to completion.
+   e. CT = finish time; TAT = CT - AT; WT = TAT - BT.
+
+ROUND ROBIN:
+1. Sort by arrival time; initialize ready queue and time.
+2. Add all processes that have arrived to ready queue.
+3. If queue empty, jump to next arrival (idle).
+4. Dequeue process; run for min(quantum, remaining burst).
+5. Add newly arrived processes; if unfinished, enqueue it.
+6. Repeat until all complete; calculate CT, TAT, WT.
+
+MLFQ demo (3 levels):
+1. New process enters Q0; Q0 quantum = q.
+2. If unfinished after Q0, demote to Q1 (quantum = 2q).
+3. If unfinished after Q1, demote to Q2 (FCFS to completion).
+4. Higher priority queues run before lower queues.
+5. Compute metrics from completion times.</pre></div>
+<div class="content" id="c"><p class="info">This compact C program demonstrates FCFS scheduling and calculates CT, TAT, WT. The browser simulator supports all four algorithms.</p><pre class="code">#include &lt;stdio.h&gt;
+
+struct Process { int pid, at, bt, ct, tat, wt; };
+int main(void) {
+    int n, i, time = 0;
+    struct Process p[20];
+    printf("Number of processes: "); scanf("%d", &amp;n);
+    for (i=0; i&lt;n; i++) {
+        printf("Enter PID, Arrival, Burst: ");
+        scanf("%d %d %d", &amp;p[i].pid, &amp;p[i].at, &amp;p[i].bt);
+    }
+    /* FCFS: simple sort by arrival time */
+    for (i=0; i&lt;n-1; i++) for (int j=i+1; j&lt;n; j++)
+        if (p[i].at &gt; p[j].at) {
+            struct Process t=p[i]; p[i]=p[j]; p[j]=t;
+        }
+    for (i=0; i&lt;n; i++) {
+        if (time &lt; p[i].at) time=p[i].at; /* idle */
+        time += p[i].bt;
+        p[i].ct=time;
+        p[i].tat=p[i].ct-p[i].at;
+        p[i].wt=p[i].tat-p[i].bt;
+    }
+    printf("PID AT BT CT TAT WT\\n");
+    for (i=0; i&lt;n; i++)
+        printf("%d %d %d %d %d %d\\n", p[i].pid,p[i].at,
+          p[i].bt,p[i].ct,p[i].tat,p[i].wt);
+    return 0;
+}</pre></div>
+<div class="content" id="io"><strong>Sample input (Load Example):</strong><pre class="code">PID   Arrival   Burst
+P1       0       7
+P2       2       4
+P3       4       1
+P4       5       4</pre><strong>Example expected FCFS results:</strong><pre class="code">PID  CT  TAT  WT
+P1   7    7    0
+P2  11    9    5
+P3  12    8    7
+P4  16   11    7</pre><p class="info">The exact chart and metrics update based on the selected algorithm.</p></div>
+<div class="content faq" id="faq"><details><summary>What is CPU scheduling?</summary><p>CPU scheduling chooses a ready process to execute on the processor.</p></details><details><summary>What is Arrival Time (AT)?</summary><p>The time when a process enters the ready queue/system.</p></details><details><summary>What is Burst Time (BT)?</summary><p>The CPU time required by a process to finish execution.</p></details><details><summary>Completion Time (CT)?</summary><p>The clock time when the process finishes execution.</p></details><details><summary>Turnaround Time (TAT)?</summary><p>Total elapsed time from arrival until completion: CT − AT.</p></details><details><summary>Waiting Time (WT)?</summary><p>Total time spent waiting in the ready queue: TAT − BT (for these CPU-only simulations).</p></details><details><summary>FCFS vs SJF?</summary><p>FCFS selects the process that arrived first. SJF selects the shortest burst among currently arrived processes and is non-preemptive here.</p></details><details><summary>Why Round Robin?</summary><p>It shares CPU time in slices, improving responsiveness for interactive/time-sharing systems. A smaller quantum adds switching overhead conceptually; this simulator does not model that overhead.</p></details><details><summary>What is MLFQ?</summary><p>Multilevel Feedback Queue uses multiple priority queues and can demote CPU-heavy processes. This demo uses three queues with fixed quanta and no promotion/aging.</p></details></div>
+</section><section class="panel"><h2>Kernel Architecture Reference</h2><p class="info">Examples and key features for Assignment III: kernel organization styles.</p><div class="table-scroll"><table class="results"><thead><tr><th>Architecture</th><th>Example OS</th><th>Important features</th></tr></thead><tbody><tr><td><strong>Monolithic</strong></td><td>Traditional UNIX; Linux (monolithic with modular support)</td><td>Most OS services run in kernel space; direct internal communication; high performance, but a fault in kernel components can affect the whole system.</td></tr><tr><td><strong>Microkernel</strong></td><td>MINIX 3; QNX; Mach (microkernel lineage)</td><td>Small kernel handles core functions such as scheduling, IPC, and basic memory management; services run outside kernel; modularity and fault isolation, with IPC overhead.</td></tr><tr><td><strong>Layered</strong></td><td>THE operating system; layered OS designs (e.g., educational systems)</td><td>Organized into layers; each layer uses lower-layer services; easier to design, debug, and maintain; layer boundaries may add overhead and reduce flexibility.</td></tr></tbody></table></div><p class="info">Tip for your GitHub assignment: include this simulator HTML, a README with these architecture notes, screenshots, and your name/roll number only if your course submission requires them.</p></section><section class="panel"><h2>Operation Log</h2><div class="log" id="log"><div class="logline">Welcome! Add processes, choose a scheduling algorithm, then run the simulation.</div></div></section>
+</main></div><div class="footer">Offline-ready • Pure HTML, CSS &amp; JavaScript • No libraries or network requests</div>
+
+<script src="script.js"></script></body>
+</html>
